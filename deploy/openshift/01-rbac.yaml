@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: safeshift-doc-gen
+  namespace: safeshift-doc-gen
+  labels:
+    app.kubernetes.io/name: safeshift-doc-gen
+---
+# Read-only access to every cluster resource.
+#
+# SSDG discovers resources dynamically (CRDs, operators, ACM managed clusters,
+# storage providers, CNI extensions, etc.) and every cluster has a slightly
+# different set of API groups. Trying to enumerate them leads to whack-a-mole
+# permission errors in runtime. This role grants "get, list, watch" on every
+# API group/resource, which is effectively the `view`+secrets level. SSDG does
+# need to read Secrets for its sanitization pipeline, but it never gets to
+# create, update, patch, delete, or impersonate anything.
+#
+# If your security posture forbids ServiceAccounts from reading Secrets
+# cluster-wide, swap this for OpenShift's built-in `cluster-reader`
+# ClusterRole. Downside: Secret-derived metadata (e.g. oauth providers)
+# will be missing from the generated documentation.
+#
+# Do NOT hand-roll a narrower allowlist of specific resources: SSDG reads
+# ~160 resource types across dozens of API groups (operator CRDs included),
+# and a curated list turns every new collector into a Forbidden error in
+# the field. If a resource is denied, SSDG now skips that section with a
+# warning instead of failing, but the section will be missing from the doc.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: safeshift-doc-gen-reader
+  labels:
+    app.kubernetes.io/name: safeshift-doc-gen
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  # Non-resource URLs (e.g., /version, /healthz, API discovery)
+  - nonResourceURLs: ["*"]
+    verbs: ["get"]
+  # The monitoring (amtool), etcd (etcdctl), and Prometheus PromQL paths
+  # in the etcd / upgrade_readiness / internal_registry collectors call
+  # `oc exec` to talk to control-plane pods. `pods/exec` is a subresource
+  # that needs the `create` verb explicitly; "get, list, watch" does not
+  # cover it. Namespaces touched today: openshift-etcd, openshift-monitoring.
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  # ACM Batch Mode writes TWO resources: a ManagedServiceAccount and a
+  # ManifestWork in each managed cluster's namespace, used to provision
+  # a temporary read-only token and collect it back. They are deleted
+  # at the end of the run (auto-cleanup).
+  - apiGroups: ["authentication.open-cluster-management.io"]
+    resources: ["managedserviceaccounts"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["work.open-cluster-management.io"]
+    resources: ["manifestworks"]
+    verbs: ["get", "list", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: safeshift-doc-gen-reader
+  labels:
+    app.kubernetes.io/name: safeshift-doc-gen
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: safeshift-doc-gen-reader
+subjects:
+  - kind: ServiceAccount
+    name: safeshift-doc-gen
+    namespace: safeshift-doc-gen

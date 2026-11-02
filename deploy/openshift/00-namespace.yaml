@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: safeshift-doc-gen
+  labels:
+    app.kubernetes.io/name: safeshift-doc-gen
+    app.kubernetes.io/part-of: safeshift-doc-gen

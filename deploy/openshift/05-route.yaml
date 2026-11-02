@@ -1,0 +1,25 @@
+---
+# OpenShift Route with edge TLS termination and HTTP-to-HTTPS redirect.
+# Replace `spec.host` if you want a custom hostname (otherwise OpenShift
+# will generate one based on the router domain).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: safeshift-doc-gen
+  namespace: safeshift-doc-gen
+  labels:
+    app.kubernetes.io/name: safeshift-doc-gen
+  annotations:
+    # above the 300 s asciidoctor-pdf cap, since /api/convert-pdf renders inside the request
+    haproxy.router.openshift.io/timeout: "330s"
+spec:
+  to:
+    kind: Service
+    name: safeshift-doc-gen
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

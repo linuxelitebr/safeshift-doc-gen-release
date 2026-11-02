@@ -1,0 +1,11 @@
+# Issue chooser config. Disables the "Open a blank issue" link so people
+# pick a template (bug or feature); routes security reports off-issue per
+# the policy in docs/SECURITY.md.
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/linuxelitebr/safeshift-doc-gen-release/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories, not as public issues. See docs/SECURITY.md.
+  - name: Question or discussion
+    url: https://github.com/linuxelitebr/safeshift-doc-gen-release/discussions
+    about: For "how do I", design questions, and use-case stories. Open a Discussion rather than an Issue.
